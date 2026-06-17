@@ -8,6 +8,7 @@ import re
 import sys
 import json
 import time
+import hashlib
 import requests
 
 # ============ 配置区 ============
@@ -346,12 +347,43 @@ class QZoneDownloader:
             elif local_jpg_count >= expected:
                 print(f"    [OK] 数量一致")
 
+            self._check_duplicates(album_dir)
+
             time.sleep(0.5)
 
         print("\n" + "=" * 60)
         print(f"[完成] 下载: {downloaded_count} 张, 失败: {failed_count} 张")
         print(f"[保存位置] {self.save_dir}")
         print("=" * 60)
+
+    def _file_md5(self, path):
+        h = hashlib.md5()
+        with open(path, "rb") as f:
+            while True:
+                chunk = f.read(8192)
+                if not chunk:
+                    break
+                h.update(chunk)
+        return h.hexdigest()
+
+    def _check_duplicates(self, album_dir):
+        hash_map = {}
+        for fname in os.listdir(album_dir):
+            if not fname.lower().endswith((".jpg", ".jpeg")):
+                continue
+            fpath = os.path.join(album_dir, fname)
+            md5 = self._file_md5(fpath)
+            hash_map.setdefault(md5, []).append(fname)
+
+        dup_groups = {k: v for k, v in hash_map.items() if len(v) > 1}
+        if not dup_groups:
+            print(f"  [去重] 未发现重复照片")
+            return
+
+        total_dup = sum(len(v) - 1 for v in dup_groups.values())
+        print(f"  [去重] 发现 {len(dup_groups)} 组重复照片 (共 {total_dup} 张多余):")
+        for md5, files in dup_groups.items():
+            print(f"    MD5 {md5[:12]}...: {', '.join(files)}")
 
     def _generate_filename(self, photo, index):
         """生成文件名，index为相册内全局序号，保证唯一"""
@@ -390,7 +422,6 @@ class QZoneDownloader:
 
 
 def main():
-    import locale
     if sys.platform == "win32":
         os.system("chcp 65001 >nul 2>&1")
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -418,6 +449,23 @@ def main():
         with open(cookie_file, "r", encoding="utf-8") as f:
             cookies = f.read().strip()
         print("[提示] 从 cookies.txt 读取Cookie")
+
+    # 如果仍然没有Cookie，尝试扫码登录
+    if not qq or not cookies:
+        print("[提示] 未配置QQ号/Cookie，启动扫码登录...")
+        try:
+            from qr_login import qr_login
+            qq_login, cookies_login = qr_login()
+            if qq_login and cookies_login:
+                qq = qq_login
+                cookies = cookies_login
+            else:
+                print("[提示] 扫码登录失败，请手动配置Cookie")
+                return
+        except ImportError:
+            print("[错误] 找不到 qr_login.py，无法扫码登录")
+            print("  请将QQ号和Cookie填入脚本顶部配置区")
+            return
 
     downloader = QZoneDownloader(qq, cookies, SAVE_DIR)
     downloader.run()
