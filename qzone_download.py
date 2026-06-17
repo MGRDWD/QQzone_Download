@@ -444,29 +444,6 @@ def main():
     elif len(sys.argv) == 2 and sys.argv[1] != "--interactive":
         qq = sys.argv[1]
 
-    cookie_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
-    if not cookies and os.path.exists(cookie_file):
-        with open(cookie_file, "r", encoding="utf-8") as f:
-            cookies = f.read().strip()
-        print("[提示] 从 cookies.txt 读取Cookie")
-
-    # 如果仍然没有Cookie，尝试扫码登录
-    if not qq or not cookies:
-        print("[提示] 未配置QQ号/Cookie，启动扫码登录...")
-        try:
-            from qr_login import qr_login
-            qq_login, cookies_login = qr_login()
-            if qq_login and cookies_login:
-                qq = qq_login
-                cookies = cookies_login
-            else:
-                print("[提示] 扫码登录失败，请手动配置Cookie")
-                return
-        except ImportError:
-            print("[错误] 找不到 qr_login.py，无法扫码登录")
-            print("  请将QQ号和Cookie填入脚本顶部配置区")
-            return
-
     downloader = QZoneDownloader(qq, cookies, SAVE_DIR)
     downloader.run()
 
