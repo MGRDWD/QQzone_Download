@@ -1,0 +1,16 @@
+# 下载的照片（体积大，不应进仓库）
+/downloads/
+
+# Cookie 包含隐私信息
+cookies.txt
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
